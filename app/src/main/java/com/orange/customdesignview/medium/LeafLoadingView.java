@@ -12,7 +12,6 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 
 import com.orange.customdesignview.R;
@@ -28,19 +27,20 @@ public class LeafLoadingView extends View {
 
     public LeafLoadingView(Context context) {
         super(context);
-        init();
+        init(context);
     }
 
     public LeafLoadingView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init();
+        init(context);
     }
 
     public LeafLoadingView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init();
+        init(context);
     }
 
+    private final String STRING_PERCENT_100="100%";
     //生成的树叶数目
     private final int LEAF_MAX_NUMS=6;
     //树叶飘动的周期长度
@@ -55,8 +55,9 @@ public class LeafLoadingView extends View {
     //树叶
     private List<Leaf> mLeafs;
 
+    private final float DEFAULT_TEXT_SIZE=12f;
     //风扇框的宽度
-    private final float CIRCLE_WIDTH=8f;
+    private final float DEFAULT_CIRCLE_WIDTH=2f;
     //风扇的旋转速度
     private int fanSpeed=3;
     //风扇旋转角度
@@ -64,15 +65,20 @@ public class LeafLoadingView extends View {
     //风扇外边的白色圆圈
     private Paint mWhitePaint;
     private Drawable mFanDrawable;
+    private float mFanMaxRadius;
+    private Paint mTextPaint;
+    private float mTextSize;
+    private float mCircleWidth;
 
     //0~100
     private float mProgress=0f;
-    private int mProgressPaint;
+    private Paint mProgressPaint;
     //进度条离view边界的距离
     private float mProgressPadding=10f;
+    private float mScale=1f;
 
     //进度条长度
-    private int mProgressWidth;
+    private float mProgressWidth;
 
     //背景paint
     private Paint mBgPaint;
@@ -84,10 +90,12 @@ public class LeafLoadingView extends View {
 
 
 
-    private void init(){
+    private void init(Context context){
+        mTextSize=dip2px(context,DEFAULT_TEXT_SIZE);
+        mCircleWidth=dip2px(context,DEFAULT_CIRCLE_WIDTH);
+
         initPaints();
         initBitmap();
-
     }
 
     private void initPaints(){
@@ -100,11 +108,17 @@ public class LeafLoadingView extends View {
         mOrangePaint.setAntiAlias(true);
         mOrangePaint.setColor(Color.parseColor("#fed255"));
 
+        mProgressPaint=new Paint();
+        mProgressPaint.setAntiAlias(true);
+        mProgressPaint.setColor(Color.parseColor("#f5a418"));
+
         mWhitePaint=new Paint();
         mWhitePaint.setColor(Color.WHITE);
         mWhitePaint.setAntiAlias(true);
         mWhitePaint.setStyle(Paint.Style.STROKE);
-        mWhitePaint.setStrokeWidth(CIRCLE_WIDTH);
+        mWhitePaint.setStrokeWidth(mCircleWidth);
+        mWhitePaint.setStrokeCap(Paint.Cap.ROUND);
+
 
         mBitmapPiant=new Paint();
         mBitmapPiant.setAntiAlias(true);
@@ -128,12 +142,8 @@ public class LeafLoadingView extends View {
         mTotalWith=w;
         mToalHeight=h;
         mBgRadius=mToalHeight/2;
-        mProgressWidth=mTotalWith-mBgRadius;
-
-        int fanPadding=(int) CIRCLE_WIDTH*3;
-        Rect rect=new Rect(mTotalWith-2*mBgRadius+fanPadding,fanPadding,mTotalWith-fanPadding,mToalHeight-fanPadding);
-        mFanDrawable.setBounds(rect);
-
+        mProgressWidth=mTotalWith-mBgRadius-mProgressPadding;
+        mFanMaxRadius=mBgRadius-mCircleWidth*3;
 
         mLeafs=createLeafs(LEAF_MAX_NUMS);
     }
@@ -146,7 +156,7 @@ public class LeafLoadingView extends View {
         drawWhiteBg(canvas);
         drawLeafs(canvas);
         drawProgressBar(canvas);
-        drawWFanBg(canvas);
+        drawFanBg(canvas);
         drawFan(canvas);
 //        drawLine(canvas);
         postInvalidate();
@@ -167,63 +177,42 @@ public class LeafLoadingView extends View {
 
 
     private void drawProgressBar(Canvas canvas){
-        RectF arcRect=new RectF(mProgressPadding,mProgressPadding,mProgressPadding+mBgRadius,mToalHeight-mProgressPadding);
+        RectF arcRect=new RectF(mProgressPadding,mProgressPadding,mBgRadius*2-mProgressPadding,mToalHeight-mProgressPadding);
 
         Path path=new Path();
-        path.addArc(arcRect,90,180);
-        canvas.drawPath(path,mOrangePaint);
+        float sweepAngle=180;
+        float xPosition=getProgressXPosition();
+        //超出弧形范围
+        if (xPosition<=mBgRadius){
+            sweepAngle=sweepAngle*((xPosition-mProgressPadding)/(mBgRadius-mProgressPadding));
+            path.addArc(arcRect,180-sweepAngle/2,sweepAngle);
+        }else {
+            path.addArc(arcRect,180-sweepAngle/2,sweepAngle);
+            path.addRect(mBgRadius,mProgressPadding,xPosition,mToalHeight-mProgressPadding, Path.Direction.CW);
+        }
+
+        //进度条到了右边的圆的左边界
+        if (xPosition>=mTotalWith-mBgRadius*2){
+            mScale=(mTotalWith-mBgRadius-xPosition)/mBgRadius;
+        }
+        canvas.drawPath(path,mProgressPaint);
     }
 
-    private Path createProgressPath(float progress, float circleRadius, RectF progressRect) {
-        RectF arcProgressRect = new RectF(progressRect.left, progressRect.top, progressRect.left + circleRadius * 2, progressRect.bottom);
-        RectF rectProgressRect = null;
-
-        float progressWidth = progress * progressRect.width();
-        float progressModeWidth = mMode == MODE_LEAF_COUNT ?
-                (float) mCurrentLeafCount / (float) LEAF_COUNT * progressRect.width() : progress * progressRect.width();
-
-        float swipeAngle = DEGREE_180;
-        //the left half circle of the progressbar
-        if (progressModeWidth < circleRadius) {
-            swipeAngle = progressModeWidth / circleRadius * DEGREE_180;
-        }
-
-        //the center rect of the progressbar
-        if (progressModeWidth < progressRect.width() - circleRadius && progressModeWidth >= circleRadius) {
-            rectProgressRect = new RectF(progressRect.left + circleRadius, progressRect.top, progressRect.left + progressModeWidth, progressRect.bottom);
-        }
-
-        //the right half circle of the progressbar
-        if (progressWidth >= progressRect.width() - circleRadius) {
-            rectProgressRect = new RectF(progressRect.left + circleRadius, progressRect.top, progressRect.right - circleRadius, progressRect.bottom);
-            mScale = (progressRect.width() - progressWidth) / circleRadius;
-        }
-
-        //the left of the right half circle
-        if (progressWidth < progressRect.width() - circleRadius) {
-            mRotation = (progressWidth / (progressRect.width() - circleRadius)) * FULL_GROUP_ROTATION % DEGREE_360;
-
-            RectF leafRect = new RectF(progressRect.left + progressWidth, progressRect.top, progressRect.right - circleRadius, progressRect.bottom);
-            addLeaf(progress, leafRect);
-        }
-
-        Path path = new Path();
-        path.addArc(arcProgressRect, DEGREE_180 - swipeAngle / 2, swipeAngle);
-
-        if (rectProgressRect != null) {
-            path.addRect(rectProgressRect, Path.Direction.CW);
-        }
-
-        return path;
+    private float getProgressXPosition(){
+        return mProgress/100*mProgressWidth+mProgressPadding;
     }
 
-    private void drawWFanBg(Canvas canvas){
-        canvas.drawCircle(mTotalWith-mBgRadius,mBgRadius,mBgRadius-CIRCLE_WIDTH/2,mWhitePaint);
-        canvas.drawCircle(mTotalWith-mBgRadius,mBgRadius,mBgRadius-CIRCLE_WIDTH,mOrangePaint);
+    private void drawFanBg(Canvas canvas){
+        canvas.drawCircle(mTotalWith-mBgRadius,mBgRadius,mBgRadius-mCircleWidth/2,mWhitePaint);
+        canvas.drawCircle(mTotalWith-mBgRadius,mBgRadius,mBgRadius-mCircleWidth,mOrangePaint);
     }
 
 
     private void drawFan(Canvas canvas){
+        mFanDrawable.setBounds(
+                (int)(mTotalWith-mBgRadius-mFanMaxRadius*mScale),(int)(mBgRadius-mFanMaxRadius*mScale),
+                (int) (mTotalWith-mBgRadius+mFanMaxRadius*mScale),(int)(mBgRadius+mFanMaxRadius*mScale)
+        );
         int rotateSaveCount=canvas.save();
         canvas.rotate(mFanRotateeDegree,mTotalWith-mBgRadius,mBgRadius);
         mFanDrawable.draw(canvas);
@@ -231,6 +220,15 @@ public class LeafLoadingView extends View {
         mFanRotateeDegree+=fanSpeed;
         if (mFanRotateeDegree>360){
             mFanRotateeDegree=fanSpeed;
+        }
+
+        //绘制100%文字
+        if (mScale<0.6f){
+            mWhitePaint.setTextSize(mTextSize*(1-mScale));
+            Rect textRect=new Rect();
+            mWhitePaint.getTextBounds(STRING_PERCENT_100,0,STRING_PERCENT_100.length(),textRect);
+            canvas.drawText(STRING_PERCENT_100,mTotalWith-mBgRadius-textRect.width()/2.0f,
+                    mBgRadius+textRect.height()/2.0f,mWhitePaint);
         }
     }
 
@@ -244,7 +242,10 @@ public class LeafLoadingView extends View {
                 continue;
             //leaf周期中
             }else if(timePass<=LEAF_ANIMATE_TIME){
-                leaf.updateLeafLocation(timePass);
+
+                if (!leaf.updateLeafLocation(timePass)){
+                    continue;
+                }
                 //draw leaf
                 canvas.save();
                 //移动
@@ -252,7 +253,6 @@ public class LeafLoadingView extends View {
                 matrix.postTranslate(leaf.x,leaf.y);
                 //旋转角度=角速度*时间
                 int angle=(int) ((360f/LEAF_ROTATE_TIME)*(timePass%LEAF_ROTATE_TIME));
-                Log.d("czh","angle:"+angle);
                 int rotate=leaf.rotateDirection==0?leaf.rotateAngle+angle:leaf.rotateAngle-angle;
                 matrix.postRotate(rotate,leaf.x+mLeafWidth/2,leaf.y+mLeafHeight/2);
                 canvas.drawBitmap(mLeafBitmap,matrix,mBitmapPiant);
@@ -267,6 +267,20 @@ public class LeafLoadingView extends View {
 
             }
         }
+    }
+
+
+    public void setProgress(float progress){
+        mProgress=Math.abs(progress);
+        if (mProgress>100){
+            mProgress=100;
+        }
+    }
+
+    public void reset(){
+        mProgress=0;
+        mScale=1.0f;
+        mLeafs=createLeafs(LEAF_MAX_NUMS);
     }
 
     private List<Leaf> createLeafs(int maxNum){
@@ -334,21 +348,22 @@ public class LeafLoadingView extends View {
             }
         }
 
-        public void updateLeafLocation(long passTime){
+        public boolean updateLeafLocation(long passTime){
             this.x=mProgressWidth*(1-(float)passTime/LEAF_ANIMATE_TIME);
             this.y=(float) (A* Math.sin(w*x+b)+h);
-//            Log.d("czh",(y+mLeafBitmap.getHeight())+"/"+mToalHeight);
-//            Log.d("czh","sin:"+A*Math.sin(w*x+b));
-            if (y>mToalHeight){
-                Log.d("czh",y+"/"+mToalHeight);
-                Log.d("czh",A+"/"+h);
-                Log.d("czh","A+h:"+(A+h)+"/"+mToalHeight);
-                Log.d("czh","h-A:"+(h-A)+"/"+mToalHeight);
+
+            if ((x+mLeafWidth)<getProgressXPosition()){
+                return false;
             }
+            return true;
         }
     }
 
 
+    public float dip2px(Context context, float dpValue) {
+        float scale = context.getResources().getDisplayMetrics().density;
+        return dpValue * scale;
+    }
 
 
 }
