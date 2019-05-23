@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-
     tools:context=".MainActivity">
 
 
@@ -26,7 +25,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
-        android:text="Button2" />
+        android:textAllCaps="false"
+        android:text="DragableView" />
 
     <Button
         android:id="@+id/button3"
