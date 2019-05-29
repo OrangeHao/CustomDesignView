@@ -5,6 +5,7 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import com.orange.customdesignview.ui.DragableViewActivity
 import com.orange.customdesignview.ui.LeafLoadingActivity
+import com.orange.customdesignview.ui.SearchViewActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -20,6 +21,9 @@ class MainActivity : AppCompatActivity() {
 
         button2.setOnClickListener {
             startActivity(Intent(this,DragableViewActivity::class.java))
+        }
+        button3.setOnClickListener {
+            startActivity(Intent(this,SearchViewActivity::class.java))
         }
     }
 

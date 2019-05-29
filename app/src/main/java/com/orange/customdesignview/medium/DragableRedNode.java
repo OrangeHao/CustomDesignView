@@ -120,10 +120,12 @@ public class DragableRedNode extends TextView {
                 if (getVisibility()== View.VISIBLE){
                     setVisibility(View.INVISIBLE);
 
+                    //添加拉伸形状的view
                     mSpringView = new SpringView(this.getContext());
                     mSpringView.initSpring(mOriginX, mOriginY, mRadius, getWidth(), getHeight());
                     mRootView.addView(mSpringView);
 
+                    //添加随手指一动的view
                     mCloneView=getCloneView();
                     mRootView.addView(mCloneView,getLayoutParams());
                 }
@@ -152,8 +154,6 @@ public class DragableRedNode extends TextView {
                         mCloneView = null;
                     }
                 } else {//不取消
-                    // TODO: 2016/3/31 显示回弹效果动画  恢复View可见
-                    //setVisibility(View.VISIBLE);
                     if (mSpringView != null && mSpringView.spring_len > 1f) {//存在弹性势能  显示弹性动画效果
                         mSpringView.startSpringAction();
                     } else {
@@ -208,7 +208,6 @@ public class DragableRedNode extends TextView {
         float cur_x;
         float cur_y;
         float spring_len = 0;
-        float origin_len = 0;
 
         ValueAnimator mSpringAnimation;
 
@@ -251,6 +250,7 @@ public class DragableRedNode extends TextView {
             this.cur_x = dest_x;
             this.cur_y = dest_y;
 
+            //求距离，用于计算圆点连接线与x轴或y轴的夹角，范围0~π
             float deltaX = 0;
             float deltaY = 0;
             if (dest_x >= from_x) {
@@ -272,14 +272,16 @@ public class DragableRedNode extends TextView {
             if (radius > 0) {
                 // (1 , 0)  (x,y)
 //                Log.d("czh","deltaX:"+deltaX);
+                //求连接线与y轴的夹角
                 double sin = deltaY / distance;
                 double angle = Math.asin(sin);
                 Log.d("czh","angle:"+angle*(180/Math.PI ));
+                //过原点做垂直于连接线的直线，直线与圆相交，有两个点。下面两个角度为圆心与这两个点连线，也就是半径，与相应轴的夹角
                 double circle_from_thela1 = angle+Math.PI/2;
                 double circle_from_thela2 = circle_from_thela1 + Math.PI;
 
 
-                //下面四个点，起始圆边上的两个点，和手指处也就是目标圆边上的两个点
+                //下面四个点，起始圆边上的两个点，和手指处也就是目标圆边上的两个点，各自的坐标
                 float circle_from_circle_x1 = (float) (from_x + radius * Math.cos(circle_from_thela1));
                 float circle_from_circle_y1 = (float) (from_y + radius * Math.sin(circle_from_thela1));
 
@@ -292,6 +294,7 @@ public class DragableRedNode extends TextView {
                 float circle_to_circle_x2 = (float) (dest_x + mRadius * Math.cos(circle_from_thela2));
                 float circle_to_circle_y2 = (float) (dest_y + mRadius * Math.sin(circle_from_thela2));
 
+                //绘制path路径，沙漏型
                 mPath.reset();
                 mPath.moveTo(circle_from_circle_x1, circle_from_circle_y1);
                 mPath.lineTo(circle_from_circle_x2, circle_from_circle_y2);
@@ -323,7 +326,6 @@ public class DragableRedNode extends TextView {
          */
         public void startSpringAction() {
             isSpringAction = true;
-            origin_len = spring_len;
 
             if (mSpringAnimation != null) {
                 mSpringAnimation.cancel();
