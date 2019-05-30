@@ -13,16 +13,10 @@ class SearchViewActivity : AppCompatActivity() {
 
         btn0.setOnClickListener {
             testView.startLoading()
-            searchingView.setNoneState()
         }
         btn1.setOnClickListener {
-            searchingView.setStartState()
+            testView.stopLoading()
         }
-        btn2.setOnClickListener {
-            searchingView.setSearchingState()
-        }
-        btn3.setOnClickListener {
-            searchingView.setEndState()
-        }
+
     }
 }

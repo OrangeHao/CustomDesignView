@@ -49,3 +49,45 @@
 ### 截图
 
 <img src="https://github.com/OrangeHao/CustomDesignView/blob/master/screenshot/leafLoading.gif"  height="50%" width="50%" >
+
+
+
+### 一个动态的搜索view，提供了开始和停止两个动作
+
+#### 核心代码如下，其他难点都有注释
+
+```java
+
+        //不取0~1是防止切换状态时，绘制空白的图形，有种闪屏的感觉，观感不好
+        mStartAnimator=ValueAnimator.ofFloat(0.0001f,0.9999f).setDuration(DURATION_START_STOP);
+        mStartAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mCurrentState=STATE_START;
+                mAnimatorValue=(float) animation.getAnimatedValue();
+                postInvalidate();
+            }
+        });
+
+
+        case STATE_START:
+        case STATE_STOP:
+            //按值截取path
+            mSearchTempPath.reset();
+            mSearchMeasure.getSegment(mSearchMeasure.getLength()*mAnimatorValue,mSearchMeasure.getLength(),mSearchTempPath,true);
+            canvas.drawPath(mSearchTempPath,mPaint);
+            break;
+       case STATE_SEARCHING:
+            mCircleTempPath.reset();
+            //距离中点越近，path越长，最长1/4path，具体计算过程有简化
+            mCircleMeasure.getSegment((float)(mCircleMeasure.getLength()*(mAnimatorValue-(1f/2*(0.5-Math.abs(mAnimatorValue-0.5))))),
+                    mCircleMeasure.getLength()*mAnimatorValue,mCircleTempPath,true);
+            canvas.drawPath(mCircleTempPath,mPaint);
+            break;
+        
+        
+```
+
+### 截图
+
+<img src="https://github.com/OrangeHao/CustomDesignView/blob/master/screenshot/searchingView.gif"  height="50%" width="50%" >
